@@ -2,3 +2,4 @@ Pillow
 transformers
 torch
 tqdm
+PyYAML

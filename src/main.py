@@ -8,7 +8,7 @@ from ui.contextmenu import ContextMenu
 from ui.toolbar import Toolbar
 from ui.editor_frame import EditorFrame
 from ui.settings_window import SettingsWindow
-from backend.app_config import load_config
+from backend.app_config import load_config, get_value
 from ui.theme import get_system_theme, DARK_THEME, LIGHT_THEME
 from PIL import Image, ImageTk
 from ui.app_managers.file_manager import FileManager
@@ -37,12 +37,16 @@ class Pendo(tk.Tk):
             except Exception as e_fallback:
                 print(f"Error setting fallback icon: {e_fallback}")
 
-        self.settings = load_config()
-
         # Theme
-        self.theme_name = get_system_theme()
-        self.theme = DARK_THEME if self.theme_name == 'dark' else LIGHT_THEME
-        self.config(bg=self.theme["bg"])
+        self.config = load_config()
+        theme_mode = get_value(self.config, "theme.mode", "system")
+        if theme_mode == "system":
+            self.theme_name = get_system_theme()
+        elif theme_mode in ["light", "dark"]:
+            self.theme_name = theme_mode
+        else:
+            self.theme_name = get_system_theme()
+        self.theme = DARK_THEME if self.theme_name == "dark" else LIGHT_THEME
 
         style = ttk.Style(self)
         style.theme_use("clam")
@@ -102,18 +106,23 @@ class Pendo(tk.Tk):
         self.bind("<Control-w>", self.tab_manager._close_current_tab)
 
         self.file_manager.new_file() # Open initial untitled file
-        self._apply_settings(self.settings)
+        self._apply_settings(self.config)
 
         self.protocol("WM_DELETE_WINDOW", self.tab_manager._on_quit)
         self.update_idletasks() # Force layout update
+
+
     def _apply_settings(self, config):
-        self.settings = config
+        self.config = config
+        font_family = get_value(config, "editor.font_family", "Consolas")
+        font_size = get_value(config, "editor.font_size", 12)
+
         for tab_id in self.notebook.tabs():
             editor_frame = self.notebook.nametowidget(tab_id)
-            editor_frame.set_font(config["font_family"], config["font_size"])
+            editor_frame.set_font(font_family, font_size)
 
     def open_settings_window(self, event=None):
-        SettingsWindow(self, self.settings, self._apply_settings)
+        SettingsWindow(self, self.config, self._apply_settings)
 
     def _on_change(self, event=None):
         editor_frame = self.tab_manager.get_current_editor_frame()

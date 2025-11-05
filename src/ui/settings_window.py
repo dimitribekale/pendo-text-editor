@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter.font import families
-from backend.app_config import save_config
+from backend.app_config import save_config, get_value
 
 class SettingsWindow(tk.Toplevel):
     def __init__(self, master, config, apply_callback):
