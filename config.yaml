@@ -1,26 +1,24 @@
-# Pendo Text Editor Configuration File
-
 editor:
-  font_family: "Consolas"
-  font_size: 12
-  wrap_mode: "word"
+  font_family: Consolas
+  font_size: 11
+  wrap_mode: word
 
 theme:
-  mode: "system"
+  mode: system
 
 prediction:
   enable: true
   debounce_delay: 300
   num_suggestions: 5
-  model_path: "distilgpt2"
+  model_path: distilgpt2
   max_context_length: 500
 
 file:
-  default_encoding: "utf-8"
+  default_encoding: utf-8
   max_file_size_mb: 100
   create_backup: true
-
-ui: 
+  
+ui:
   window_width: 1200
   window_height: 800
   min_width: 600

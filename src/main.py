@@ -9,6 +9,7 @@ from ui.toolbar import Toolbar
 from ui.editor_frame import EditorFrame
 from ui.settings_window import SettingsWindow
 from backend.app_config import load_config, get_value
+from backend.model_manager import ModelManager
 from ui.theme import get_system_theme, DARK_THEME, LIGHT_THEME
 from PIL import Image, ImageTk
 from ui.app_managers.file_manager import FileManager
@@ -38,8 +39,8 @@ class Pendo(tk.Tk):
                 print(f"Error setting fallback icon: {e_fallback}")
 
         # Theme
-        self.config = load_config()
-        theme_mode = get_value(self.config, "theme.mode", "system")
+        self.app_config = load_config()
+        theme_mode = get_value(self.app_config, "theme.mode", "system")
         if theme_mode == "system":
             self.theme_name = get_system_theme()
         elif theme_mode in ["light", "dark"]:
@@ -69,6 +70,7 @@ class Pendo(tk.Tk):
                 print(f"Error setting dark title bar: {e}")
 
         # Instantiate Managers
+        self.model_manager = ModelManager()
         self.file_manager = FileManager(self)
         self.tab_manager = TabManager(self)
 
@@ -106,14 +108,14 @@ class Pendo(tk.Tk):
         self.bind("<Control-w>", self.tab_manager._close_current_tab)
 
         self.file_manager.new_file() # Open initial untitled file
-        self._apply_settings(self.config)
+        self._apply_settings(self.app_config)
 
         self.protocol("WM_DELETE_WINDOW", self.tab_manager._on_quit)
         self.update_idletasks() # Force layout update
 
 
     def _apply_settings(self, config):
-        self.config = config
+        self.app_config = config
         font_family = get_value(config, "editor.font_family", "Consolas")
         font_size = get_value(config, "editor.font_size", 12)
 
@@ -122,7 +124,7 @@ class Pendo(tk.Tk):
             editor_frame.set_font(font_family, font_size)
 
     def open_settings_window(self, event=None):
-        SettingsWindow(self, self.config, self._apply_settings)
+        SettingsWindow(self, self.app_config, self._apply_settings)
 
     def _on_change(self, event=None):
         editor_frame = self.tab_manager.get_current_editor_frame()

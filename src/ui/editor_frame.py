@@ -4,11 +4,10 @@ import re
 import threading
 from .editor.line_numbers_widget import LineNumbers
 from .suggestion_box import SuggestionBox
-from backend.prediction_model import Prediction
 from .editor.prediction_handler import PredictionHandler
 
 class EditorFrame(ttk.Frame):
-    def __init__(self, master, theme, change_callback, **kwargs):
+    def __init__(self, master, theme, change_callback, predictor, **kwargs):
         super().__init__(master, **kwargs)
         self.theme = theme
         self.change_callback = change_callback
@@ -34,7 +33,7 @@ class EditorFrame(ttk.Frame):
         self.text_area.config(yscrollcommand=self._on_scroll)
 
         # Prediction and Suggestion Engine
-        self.predictor = Prediction()
+        self.predictor = predictor
         self.suggestion_box = SuggestionBox(self, self._accept_suggestion, self.text_area)
         
         # Prediction Handler
