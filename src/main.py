@@ -6,7 +6,6 @@ from ui.menubar import MenuBar
 from ui.statusbar import StatusBar
 from ui.contextmenu import ContextMenu
 from ui.toolbar import Toolbar
-from ui.editor_frame import EditorFrame
 from ui.settings_window import SettingsWindow
 from backend.app_config import load_config
 from ui.theme import get_system_theme, DARK_THEME, LIGHT_THEME
