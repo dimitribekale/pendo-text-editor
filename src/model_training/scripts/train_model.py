@@ -26,22 +26,32 @@ def main():
         tokenizer.pad_token = tokenizer.eos_token
         model.config.pad_token_id = model.config.eos_token_id
 
-    print("Defining training arguments...")
     training_args = TrainingArguments(
         output_dir=CHECKPOINT_DIR,
         overwrite_output_dir=True,
-        evaluation_strategy="epoch",
-        per_device_train_batch_size=8,
-        per_device_eval_batch_size=8,
-        num_train_epochs=3, # Adjust as needed
-        learning_rate=2e-5,
+        eval_strategy="steps",
+        eval_step=500,
+        num_train_epochs=3,
+        per_device_train_batch_size=32,
+        per_device_eval_batch_size=32,
+        gradient_accumulation_steps=2,
+        learning_rate=5e-5,
         weight_decay=0.01,
-        save_total_limit=2, # Only save the last 2 checkpoints
-        logging_dir="./logs",
-        logging_steps=100,
-        save_strategy="epoch",
+        lr_scheduler_type="cosine",
+        warmup_steps=500,
+        max_grad_norm=1.0,
+        bf16=True,
+        save_strategy="steps",
+        save_steps=500,
+        save_total_limit=3,
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
+        logging_dir="./logs",
+        logging_steps=50,
+        logging_first_step=True,
+        report_to=["tensorboard"],
+        ddp_find_unused_parameters=False,
+        dataloader_num_workers=8,    
     )
 
     print("Initializing Trainer...")
@@ -49,11 +59,11 @@ def main():
         model=model,
         args=training_args,
         train_dataset=lm_dataset["train"],
-        eval_dataset=lm_dataset["train"], # Using train for eval for simplicity, ideally use a separate validation split
+        eval_dataset=lm_dataset["test"],
         tokenizer=tokenizer,
     )
 
-    print("Starting training... This will take a significant amount of time and requires a GPU.")
+    print("Starting training...")
     trainer.train()
 
     print(f"Saving fine-tuned model and tokenizer to {FINAL_MODEL_DIR}...")

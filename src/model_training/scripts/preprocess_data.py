@@ -3,12 +3,12 @@ from datasets import load_dataset
 import os
 
 # Define paths
-RAW_DATA_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw', 'openwebtext_subset.txt')
+RAW_DATA_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw', 'wikitext_full.txt')
 PROCESSED_DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed')
 
 # Model name for tokenizer
 MODEL_NAME = "distilgpt2"
-BLOCK_SIZE = 128 # Max sequence length for the model
+BLOCK_SIZE = 512 # Max sequence length for the model
 
 def main():
     os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
@@ -54,6 +54,19 @@ def main():
         batched=True,
         num_proc=os.cpu_count(),
     )
+
+    print("\n" + "="*60)
+    print("Creating train/validation split...")
+    print("="*60)
+
+    split_dataset = lm_dataset["train"].train_test_split(
+        test_size=0.1,
+        seed=42
+    )
+
+    print(f"Training samples: {len(split_dataset["train"]):,}")
+    print(f"Validation samples: {len(split_dataset["test"]):,}")
+    print("="*60 + "\n")
 
     print(f"Saving processed dataset to {PROCESSED_DATA_DIR}...")
     lm_dataset.save_to_disk(PROCESSED_DATA_DIR)
