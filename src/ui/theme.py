@@ -1,4 +1,4 @@
-import winreg
+
 
 # Define color palettes
 DARK_THEME = {
@@ -27,20 +27,54 @@ LIGHT_THEME = {
     "line_number_fg": "#606366",
 }
 
+import sys
+import subprocess
+
+
 def get_system_theme():
-    """Checks the Windows registry for the system theme.
-    Returns 'dark' or 'light'. Defaults to 'light' on error or non-Windows OS.
     """
-    try:
-        # Registry key for theme settings
-        key_path = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path)
+    Checks the system theme and "Dark" or "Light". Defaults to "Light" on error.
+    """
+    platform = sys.platform
+
+    if platform == "win32":
+        try:
+            import winreg
+            # Registry key for theme settings
+            key_path = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path)
+            # Value that indicates if apps should use the light theme (1) or dark theme (0)
+            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+            winreg.CloseKey(key)
+            return "light" if value == 1 else "dark"
         
-        # Value that indicates if apps should use the light theme (1) or dark theme (0)
-        value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-        winreg.CloseKey(key)
+        except (FileNotFoundError, OSError, ModuleNotFoundError):
+            return "light"
+    
+    elif platform == "darwin":
+        # MacOs
+        try:
+            result = subprocess.run(
+                ["defaults", "read", "-g", "AppleInterfaceStyle"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            return "dark" if result.stdout.strip().lower() == "dark" else "light"
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+            return "light"
+    
+    elif platform.startswith("linux"):
+        try:
+            result = subprocess.run(
+                ["getsettings", "get", "org.gnome.desktop.interface", "gtk-theme"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            theme_name = result.stdout.strip().lower()
+            return "dark" if "dark" in theme_name else "light"
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+            return "light"
         
-        return "light" if value == 1 else "dark"
-    except (FileNotFoundError, OSError):
-        # Default to light theme if key is not found or on other OSes
-        return "light"
+    return "light"
