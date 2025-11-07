@@ -9,7 +9,8 @@ Pendo is a modern, feature-rich text editor built with Python's Tkinter. It offe
 *   **Modern UI:** Built with `tkinter.ttk` for a native look and feel, adapting to system light/dark themes on Windows.
 *   **Tabbed Interface:** Edit multiple files concurrently with a tabbed document interface.
 *   **Real-time Predictive Text:**
-    *   Powered by a fine-tuned HuggingFace `distilgpt2` model.
+    *   Powered by a fine-tuned HuggingFace `bekalebendong/pendo-distilgpt2-finetuned` model.
+    *   Fine-tuned on 10% of the `Salesforce/wikitext - wikitext-103-v1` dataset with an evaluation loss of 2.91.
     *   Suggestions appear inline as you type.
     *   Accept suggestions with `Tab`, `Enter`, or mouse click.
     *   Dynamic suggestion box sizing to match content.
@@ -30,7 +31,7 @@ Pendo is a modern, feature-rich text editor built with Python's Tkinter. It offe
 
 ## Screenshot
 
-_Please add a screenshot of the Pendo Text Editor here._
+![Pendo Editor Screenshot](src/images/example.png)
 
 ## Installation
 
@@ -73,7 +74,7 @@ python src/main.py
 
 ## Model Fine-tuning (Advanced)
 
-The predictive text feature uses a fine-tuned HuggingFace `distilgpt2` model. If you wish to fine-tune the model yourself on a custom dataset (e.g., OpenWebText) or improve its performance, follow these steps. **Note: Fine-tuning requires a GPU.**
+The predictive text feature uses a fine-tuned HuggingFace model. If you wish to fine-tune the model yourself on a custom dataset or improve its performance, follow these steps. **Note: Fine-tuning requires a GPU.**
 
 1.  **Navigate to the model training scripts:**
     ```bash
@@ -100,9 +101,9 @@ The predictive text feature uses a fine-tuned HuggingFace `distilgpt2` model. If
 
 5.  **Integrate the fine-tuned model:**
     *   Once fine-tuning is complete, open `src/backend/prediction_model.py`.
-    *   Change the `model='distilgpt2'` line in the `Prediction` class's `__init__` method to point to your fine-tuned model's directory:
+    *   Change the `model='distilgpt2'` line in the `Prediction` class's `__init__` method to point to your fine-tuned model's directory or HuggingFace Hub ID:
         ```python
-        self.generator = pipeline('text-generation', model='src/model_training/output/final_model/')
+        self.generator = pipeline('text-generation', model='bekalebendong/pendo-distilgpt2-finetuned')
         ```
 
 ## Contributing
@@ -111,4 +112,4 @@ Feel free to fork the repository, make improvements, and submit pull requests. F
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE.md file for details. (If applicable)
+This project is licensed under the MIT License.

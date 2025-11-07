@@ -5,7 +5,7 @@ class Prediction:
     def __init__(self):
         # Initialize the text generation pipeline with a pre-trained model
         # distilgpt2 is a good balance of performance and size for this task
-        self.generator = pipeline('text-generation', model='distilgpt2')
+        self.generator = pipeline('text-generation', model='bekalebendong/pendo-distilgpt2-finetuned40')
 
     def predict(self, prompt, num_suggestions=5):
         """Predicts the next words based on the given prompt using a HuggingFace model."""
