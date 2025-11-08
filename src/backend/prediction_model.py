@@ -3,8 +3,6 @@ import re
 
 class Prediction:
     def __init__(self):
-        # Initialize the text generation pipeline with a pre-trained model
-        # distilgpt2 is a good balance of performance and size for this task
         self.generator = pipeline('text-generation', model='bekalebendong/pendo-distilgpt2-finetuned40')
 
     def predict(self, prompt, num_suggestions=5):
@@ -12,11 +10,6 @@ class Prediction:
         if not prompt.strip():
             return []
 
-        # Generate text. We want to generate just a few tokens after the prompt.
-        # max_new_tokens controls how many tokens are generated.
-        # num_return_sequences controls how many different sequences are generated.
-        # return_full_text=False ensures we only get the generated part.
-        # We set do_sample=True for more diverse suggestions.
         generated_sequences = self.generator(
             prompt,
             max_new_tokens=5, # Generate a few tokens to get potential next words

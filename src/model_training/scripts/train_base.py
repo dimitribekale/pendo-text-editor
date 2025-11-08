@@ -2,12 +2,12 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments,
 from datasets import load_from_disk
 import os
 
-# Define paths
+
 PROCESSED_DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed')
 FINAL_MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'output', 'final_model')
 CHECKPOINT_DIR = os.path.join(os.path.dirname(__file__), '..', 'output', 'checkpoints')
 
-# Model name for tokenizer and base model
+
 MODEL_NAME = "distilgpt2"
 
 def main():

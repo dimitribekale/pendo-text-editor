@@ -3,15 +3,16 @@ from tqdm import tqdm
 import os
 import random
 
-# Define paths
 RAW_DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw')
 OUTPUT_FILE = os.path.join(RAW_DATA_DIR, 'mixed_dataset.txt')
 
-# Dataset proportions (must sum to 1.0)
+
 DATASET_MIX = {
-    'wikitext': 0.70,      # 70%
-    'wikipedia': 0.30,     # 30%
+    'wikitext': 0.70,      
+    'wikipedia': 0.30,     
 }
+
+TARGET_SAMPLES = 100000
 
 def download_and_sample_dataset(dataset_name, proportion, total_target_samples=100000):
     """
@@ -30,11 +31,11 @@ def download_and_sample_dataset(dataset_name, proportion, total_target_samples=1
         texts = [sample['text'].strip() for sample in dataset if sample['text'].strip()]
 
     elif dataset_name == 'wikipedia':
-        print("Loading Wikipedia (English, 20220301 version)...")
+        print("Loading Wikipedia (English, 20231101 version)...")
         print("This may take 5-10 minutes...")
-        # Load a portion of Wikipedia
+        
         dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train[:30%]")
-        # Wikipedia has 'text' field
+        
         texts = [sample['text'].strip() for sample in dataset if sample['text'].strip() and len(sample['text']) > 100]
 
     print(f"✓ Downloaded {len(texts):,} samples from {dataset_name}")
@@ -52,24 +53,24 @@ def download_and_sample_dataset(dataset_name, proportion, total_target_samples=1
 def main():
     os.makedirs(RAW_DATA_DIR, exist_ok=True)
 
-    print("="*60)
-    print("MULTI-DATASET DOWNLOADER (VERIFIED WORKING)")
-    print("="*60)
-    print("\nDataset Mix Strategy:")
+    print("="*70)
+    print("MULTI-DATASET DOWNLOADER FOR KNOWLEDGE DISTILLATION")
+    print("="*70)
+    print("\nDataset Mix Strategy (matches teacher training):")
     for name, prop in DATASET_MIX.items():
         print(f"  - {name}: {prop*100:.0f}%")
+    print(f"\nTarget total samples: {TARGET_SAMPLES:,}")
+    print("="*70)
     print()
-
-    TARGET_SAMPLES = 100000
 
     all_texts = []
 
-    # Download each dataset
+    
     for dataset_name, proportion in DATASET_MIX.items():
         texts = download_and_sample_dataset(dataset_name, proportion, TARGET_SAMPLES)
         all_texts.extend(texts)
 
-    # Shuffle the combined dataset
+   
     print(f"\n{'='*60}")
     print("Mixing and shuffling datasets...")
     print(f"{'='*60}")
@@ -83,15 +84,17 @@ def main():
         for text in tqdm(all_texts, desc="Writing to file"):
             f.write(text + '\n\n')
 
-    print(f"\n{'='*60}")
+    print(f"\n{'='*70}")
     print("✓ DOWNLOAD COMPLETE!")
-    print(f"{'='*60}")
+    print(f"{'='*70}")
     print(f"Mixed dataset saved to: {OUTPUT_FILE}")
     print(f"Total samples: {len(all_texts):,}")
     print(f"\nDataset composition:")
-    print(f"  - WikiText-103: ~{int(len(all_texts) * 0.70):,} samples")
-    print(f"  - Wikipedia:    ~{int(len(all_texts) * 0.30):,} samples")
-    print(f"{'='*60}")
+    print(f"  - WikiText-103: ~{int(len(all_texts) * 0.70):,} samples (70%)")
+    print(f"  - Wikipedia 2023:    ~{int(len(all_texts) * 0.30):,} samples (30%)")
+    print(f"\nNext step:")
+    print(f"  Run: python preprocess_data.py")
+    print(f"{'='*70}")
 
 if __name__ == "__main__":
     main()

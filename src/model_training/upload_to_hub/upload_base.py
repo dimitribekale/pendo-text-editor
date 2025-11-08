@@ -1,12 +1,56 @@
 import os
-from huggingface_hub import HfApi, login
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from huggingface_hub import HfApi, create_repo
+from huggingface_hub import snapshot_download
+from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'output', 'final_model')
 REPO_NAME = "bekalebendong/pendo-distilgpt2-wikitext"
+HF_TOKEN = None
+PRIVATE = False
+
 
 def upload_model():
-    login()
+    print("="*60)
+    print("HUGGING FACE HUB UPLOAD - BASELINE MODEL")
+    print("="*60)
+    print()
+
+    # Step 1: Token validation
+    print("Step 1: Validating HuggingFace token...")
+    print("-" * 60)
+
+    token = HF_TOKEN
+    if token is None:
+        token = os.environ.get('HF_TOKEN')
+
+    if token is None:
+        print("\n[ERROR] HuggingFace token not found!")
+        print("\nPlease either:")
+        print("  1. Set HF_TOKEN variable in this script")
+        print("  2. Set HF_TOKEN environment variable")
+        print("\nGet your token from:")
+        print("  https://huggingface.co/settings/tokens")
+        print("  (Make sure it has WRITE permission!)")
+        return False
+
+    print("✓ Token found")
+    print()
+
+    # Step 2: Create repository
+    print("Step 2: Creating repository...")
+    print("-" * 60)
+    try:
+        create_repo(
+            repo_id=REPO_NAME,
+            token=token,
+            private=PRIVATE,
+            exist_ok=True,
+            repo_type="model"
+        )
+        print(f"✓ Repository ready: {REPO_NAME}")
+    except Exception as e:
+        print(f"[ERROR] Failed to create repository: {e}")
+        return False
     print()
 
     model_card = f"""---
@@ -105,9 +149,14 @@ def upload_model():
   """
     print("Step 3: Loading model...")
     print("-" * 60)
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-    model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
-    print("✓ Model loaded!")
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+        model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
+        print("✓ Model loaded!")
+    except Exception as e:
+        print(f"[ERROR] Failed to load model: {e}")
+        return False
+    print()
 
     # Step 4: Push to hub
     print("Step 4: Uploading to HuggingFace Hub...")
@@ -115,27 +164,50 @@ def upload_model():
     print(f"Repository: {REPO_NAME}")
     print()
 
-    # Push model
-    model.push_to_hub(REPO_NAME)
-    tokenizer.push_to_hub(REPO_NAME)
+    try:
+        # Push model with commit message
+        model.push_to_hub(
+            repo_id=REPO_NAME,
+            token=token,
+            commit_message="Upload baseline model (Val Loss: 3.206)"
+        )
+        print("✓ Model uploaded!")
 
-    # Push model card
-    api = HfApi()
-    with open("temp_model_card.md", "w") as f:
-        f.write(model_card)
+        # Push tokenizer
+        tokenizer.push_to_hub(
+            repo_id=REPO_NAME,
+            token=token,
+            commit_message="Upload tokenizer"
+        )
+        print("✓ Tokenizer uploaded!")
 
-    api.upload_file(
-        path_or_fileobj="temp_model_card.md",
-        path_in_repo="README.md",
-        repo_id=REPO_NAME,
-        repo_type="model"
-    )
+        # Push model card
+        api = HfApi()
+        temp_card_path = "temp_model_card.md"
 
-    # Cleanup
-    os.remove("temp_model_card.md")
+        with open(temp_card_path, "w", encoding="utf-8") as f:
+            f.write(model_card)
 
+        api.upload_file(
+            path_or_fileobj=temp_card_path,
+            path_in_repo="README.md",
+            repo_id=REPO_NAME,
+            repo_type="model",
+            token=token,
+            commit_message="Add model card with YAML metadata"
+        )
+        print("✓ Model card uploaded!")
+
+        # Cleanup
+        os.remove(temp_card_path)
+
+    except Exception as e:
+        print(f"[ERROR] Upload failed: {e}")
+        return False
+
+    print()
     print("="*60)
-    print("✓ Upload complete!")
+    print("✓ UPLOAD COMPLETE!")
     print("="*60)
     print(f"Your model is now available at:")
     print(f"https://huggingface.co/{REPO_NAME}")
@@ -143,6 +215,8 @@ def upload_model():
     print("Others can now use your model with:")
     print(f'model = AutoModelForCausalLM.from_pretrained("{REPO_NAME}")')
     print("="*60)
+
+    return True
 
 if __name__ == "__main__":
     upload_model()

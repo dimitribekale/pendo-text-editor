@@ -2,26 +2,40 @@ from transformers import AutoTokenizer
 from datasets import load_dataset
 import os
 
-# Define paths
-RAW_DATA_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw', 'wikitext_full.txt')
+
+RAW_DATA_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw', 'mixed_dataset.txt')
 PROCESSED_DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed')
 
-# Model name for tokenizer
-MODEL_NAME = "distilgpt2"
-BLOCK_SIZE = 512 # Max sequence length for the model
+
+MODEL_NAME = "gpt2"
+BLOCK_SIZE = 512
 
 def main():
     os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
+
+    print("="*70)
+    print("DATA PREPROCESSING FOR KNOWLEDGE DISTILLATION")
+    print("="*70)
+    print(f"Model tokenizer: {MODEL_NAME}")
+    print(f"Block size: {BLOCK_SIZE}")
+    print(f"Input file: {RAW_DATA_FILE}")
+    print(f"Output directory: {PROCESSED_DATA_DIR}")
+    print("="*70)
+    print()
 
     print(f"Loading tokenizer for {MODEL_NAME}...")
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     # Set pad_token_id for generation if not already set
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    print("✓ Tokenizer loaded")
+    print()
 
     print(f"Loading raw data from {RAW_DATA_FILE}...")
     # Load the text file as a dataset
     dataset = load_dataset("text", data_files={"train": RAW_DATA_FILE})
+    print(f"✓ Loaded {len(dataset['train']):,} text samples")
+    print()
 
     print("Tokenizing dataset...")
     def tokenize_function(examples):
@@ -55,22 +69,31 @@ def main():
         num_proc=os.cpu_count(),
     )
 
-    print("\n" + "="*60)
-    print("Creating train/validation split...")
-    print("="*60)
+    print("\n" + "="*70)
+    print("Creating train/validation split (90/10)...")
+    print("="*70)
 
     split_dataset = lm_dataset["train"].train_test_split(
-        test_size=0.1,
-        seed=42
+        test_size=0.1,  # 10% validation
+        seed=42  # Reproducible split
     )
 
-    print(f"Training samples: {len(split_dataset["train"]):,}")
-    print(f"Validation samples: {len(split_dataset["test"]):,}")
-    print("="*60 + "\n")
+    print(f"✓ Training samples: {len(split_dataset['train']):,}")
+    print(f"✓ Validation samples: {len(split_dataset['test']):,}")
+    print()
 
     print(f"Saving processed dataset to {PROCESSED_DATA_DIR}...")
-    lm_dataset.save_to_disk(PROCESSED_DATA_DIR)
-    print("Processed data saved successfully.")
+    split_dataset.save_to_disk(PROCESSED_DATA_DIR)
+
+    print("\n" + "="*70)
+    print("✓ PREPROCESSING COMPLETE!")
+    print("="*70)
+    print(f"Processed dataset saved to: {PROCESSED_DATA_DIR}")
+    print(f"Training samples: {len(split_dataset['train']):,}")
+    print(f"Validation samples: {len(split_dataset['test']):,}")
+    print(f"\nNext step:")
+    print(f"  Run: python distill_model.py")
+    print("="*70)
 
 if __name__ == "__main__":
     main()
