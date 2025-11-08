@@ -12,7 +12,7 @@ DATASET_MIX = {
     'wikipedia': 0.30,     
 }
 
-TARGET_SAMPLES = 100000
+TARGET_SAMPLES = 500000  # Increased for improved teacher model
 
 def download_and_sample_dataset(dataset_name, proportion, total_target_samples=100000):
     """
@@ -32,10 +32,10 @@ def download_and_sample_dataset(dataset_name, proportion, total_target_samples=1
 
     elif dataset_name == 'wikipedia':
         print("Loading Wikipedia (English, 20231101 version)...")
-        print("This may take 5-10 minutes...")
-        
-        dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train[:30%]")
-        
+        print("This may take 10-15 minutes (loading 60% of dataset)...")
+
+        dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train[:60%]")
+
         texts = [sample['text'].strip() for sample in dataset if sample['text'].strip() and len(sample['text']) > 100]
 
     print(f"✓ Downloaded {len(texts):,} samples from {dataset_name}")
@@ -90,10 +90,11 @@ def main():
     print(f"Mixed dataset saved to: {OUTPUT_FILE}")
     print(f"Total samples: {len(all_texts):,}")
     print(f"\nDataset composition:")
-    print(f"  - WikiText-103: ~{int(len(all_texts) * 0.70):,} samples (70%)")
+    print(f"  - WikiText-103:      ~{int(len(all_texts) * 0.70):,} samples (70%)")
     print(f"  - Wikipedia 2023:    ~{int(len(all_texts) * 0.30):,} samples (30%)")
+    print(f"\nEstimated tokens: ~120M tokens (5x larger than previous)")
     print(f"\nNext step:")
-    print(f"  Run: python preprocess_data.py")
+    print(f"  Run: python preprocess_mixed_data.py")
     print(f"{'='*70}")
 
 if __name__ == "__main__":

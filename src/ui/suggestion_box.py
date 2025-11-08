@@ -46,7 +46,7 @@ class SuggestionBox(tk.Toplevel):
         self.geometry(f"{int(calculated_width)}x{int(calculated_height)}+{x}+{y}")
         self.deiconify()
         self.lift()
-        self.listbox.focus_force()
+        
 
     def hide(self):
         self.withdraw()

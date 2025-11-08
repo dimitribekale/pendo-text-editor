@@ -7,7 +7,7 @@ CONFIG_FILE = Path(__file__).parent.parent.parent / "config.yaml"
 def _deep_merge(default, user):
     """Recursively merge user config into default config."""
     result = default.copy()
-    for key, value in user.item():
+    for key, value in user.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = _deep_merge(result[key], value)
         else:

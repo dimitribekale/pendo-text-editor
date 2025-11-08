@@ -3,7 +3,7 @@ import re
 
 class Prediction:
     def __init__(self):
-        self.generator = pipeline('text-generation', model='bekalebendong/pendo-distilgpt2-finetuned40')
+        self.generator = pipeline('text-generation', model='bekalebendong/pendo-distilgpt2-wikitext')
 
     def predict(self, prompt, num_suggestions=5):
         """Predicts the next words based on the given prompt using a HuggingFace model."""
