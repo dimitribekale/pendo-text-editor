@@ -23,12 +23,12 @@ STUDENT_NAME = "gpt2"  # 124M parameters
 # Training hyperparameters (optimized for 3x H100)
 BATCH_SIZE = 32           # Per GPU
 GRADIENT_ACCUMULATION = 2 # Effective batch = 32 × 3 × 2 = 192
-LEARNING_RATE = 1.5e-5      # ✅ FIXED: Was 15e-5 (3x too high!)
+LEARNING_RATE = 1e-5      # ✅ FIXED: Was 15e-5 (3x too high!)
 NUM_EPOCHS = 5
 
 # Distillation hyperparameters (OPTIMIZED!)
-TEMPERATURE = 1.5         # ✅ FIXED: Was 1.5 (prevents over-smoothing)
-ALPHA = 0.4               # ✅ CORRECT: 70% task loss, 30% distillation
+TEMPERATURE = 2.2         # ✅ FIXED: Was 1.5 (prevents over-smoothing)
+ALPHA = 0.2               # ✅ CORRECT: 70% task loss, 30% distillation
 
 # Optimization
 MAX_GRAD_NORM = 1.0       # ✅ FIXED: Was 0.5 (less aggressive clipping)
@@ -146,8 +146,8 @@ def test_generation(model, tokenizer, device, prompts, epoch, max_length=30):
                 do_sample=True,
                 top_k=50,
                 top_p=0.95,
-                temperature=0.8,
-                repetition_penalty=1.2,  # Prevent repetition loops
+                temperature=0.7,
+                repetition_penalty=1.7,  # Prevent repetition loops
                 pad_token_id=tokenizer.eos_token_id
             )
 
