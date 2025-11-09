@@ -66,7 +66,7 @@ def main():
         report_to=["tensorboard"],
         # Multi-GPU optimization
         ddp_find_unused_parameters=False,
-        dataloader_num_workers=8,
+        dataloader_num_workers=24,
     )
     print("Initializing Trainer...")
     trainer = Trainer(
@@ -102,3 +102,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
