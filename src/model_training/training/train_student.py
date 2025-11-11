@@ -1,4 +1,6 @@
 import os
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import torch
 from tqdm import tqdm
 import torch.nn as nn
@@ -17,22 +19,22 @@ TEACHER_MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'output', 'tea
 STUDENT_MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'output', 'student_model')
 
 # Model configuration
-TEACHER_NAME = TEACHER_MODEL_DIR  # ✅ FIXED: Use local teacher (data-aligned!)
+TEACHER_NAME = TEACHER_MODEL_DIR  
 STUDENT_NAME = "gpt2"  # 124M parameters
 
-# Training hyperparameters (optimized for 3x H100)
-BATCH_SIZE = 32           # Per GPU
-GRADIENT_ACCUMULATION = 2 # Effective batch = 32 × 3 × 2 = 192
-LEARNING_RATE = 1e-5      # ✅ FIXED: Was 15e-5 (3x too high!)
+# Training hyperparameters (optimized for 4x H100)
+BATCH_SIZE = 32           
+GRADIENT_ACCUMULATION = 2 
+LEARNING_RATE = 3.5151058985941575e-05      
 NUM_EPOCHS = 5
 
-# Distillation hyperparameters (OPTIMIZED!)
-TEMPERATURE = 2.2         # ✅ FIXED: Was 1.5 (prevents over-smoothing)
-ALPHA = 0.2               # ✅ CORRECT: 70% task loss, 30% distillation
+# Distillation hyperparameters
+TEMPERATURE = 0.8061388551435227    
+ALPHA = 0.6982018029936826    
 
 # Optimization
-MAX_GRAD_NORM = 1.0       # ✅ FIXED: Was 0.5 (less aggressive clipping)
-WARMUP_STEPS = 100        # ✅ FIXED: Was 1000 (now 13% of total steps)
+MAX_GRAD_NORM = 1.0 
+WARMUP_STEPS = 1000  
 
 # Generation testing prompts
 TEST_PROMPTS = [
@@ -159,8 +161,8 @@ def test_generation(model, tokenizer, device, prompts, epoch, max_length=30):
 
         if len(words) > 3:
             # Look for 3+ consecutive identical words
-            for i in range(len(words) - 2):
-                if words[i] == words[i+1] == words[i+2]:
+            for i in range(len(words) - 1):
+                if words[i] == words[i+1]:
                     has_repetition = True
                     break
 
@@ -271,7 +273,7 @@ def main():
         train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=24,
+        num_workers=32,
         pin_memory=True
     )
 
@@ -279,7 +281,7 @@ def main():
         eval_dataset,
         batch_size=BATCH_SIZE,
         shuffle=False,
-        num_workers=8,
+        num_workers=32,
         pin_memory=True
     )
 
