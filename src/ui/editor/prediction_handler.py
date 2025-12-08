@@ -3,6 +3,7 @@ import re
 import threading
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from ..utils.text_utils import extract_partial_word, get_prompt_before_cursor
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -48,26 +49,47 @@ class PredictionHandler:
         self._clear_ghost_text()
 
     def _on_key_release(self, event=None):
+        """Handle key release events and trigger predictions."""
         self.change_callback() # Update dirty state and line numbers
 
-        # Clear ghost text on any keypress except Tab, Shift, Control, Alt
-        if event and event.keysym not in ("Tab", "Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R"):
+        # Clear ghost text on typing (except modifier keys)
+        if self._should_clear_ghost_text(event):
             self._clear_ghost_text()
 
-        # Hide suggestions immediately for certain keys
-        if event and event.keysym in ("Escape", "Return", "Tab", "Left", "Right", "Up", "Down"):
+        # Check for keys that should stop prediction
+        if self._should_skip_prediction(event):
             self.suggestion_box.hide()
-            if event.keysym in ("Up", "Down"): # Allow arrow keys to navigate listbox if active
-                if self.suggestion_box.is_active():
-                    return # Don't hide, let listbox handle
             return
 
-        # Cancel any pending prediction
+        # Debounce and schedule prediction
+        self._schedule_debounced_prediction()
+
+    def _should_clear_ghost_text(self, event):
+        """Determine if ghost text should be cleared for this key."""
+        if not event:
+            return False
+        modifier_keys = ("Tab", "Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R")
+        return event.keysym not in modifier_keys
+
+    def _should_skip_prediction(self, event):
+        """Determine if prediction should be skipped for this key."""
+        if not event:
+            return False
+        skip_keys = ("Escape", "Return", "Tab", "Left", "Right", "Up", "Down")
+        if event.keysym not in skip_keys:
+            return False
+
+        # Special case: allow arrow keys if suggestion box is active
+        if event.keysym in ("Up", "Down") and self.suggestion_box.is_active():
+            return False
+
+        return True
+
+    def _schedule_debounced_prediction(self):
+        """Cancel pending prediction and schedule new one with debounce delay."""
         if self.after_id:
             self.master.after_cancel(self.after_id)
-
-        # Schedule new prediction after a short delay
-        self.after_id = self.master.after(300, self._perform_prediction) # 300ms debounce
+        self.after_id = self.master.after(300, self._perform_prediction)
 
     def _perform_prediction(self):
         """Initiate prediction with proper thread management"""
@@ -76,15 +98,12 @@ class PredictionHandler:
             self.current_future.cancel()
 
         cursor_index = self.text_area.index(tk.INSERT)
-        line_text_before_cursor = self.text_area.get(f"{cursor_index} linestart", cursor_index)
 
         # Extract the current partial word being typed
-        current_word_match = re.search(r"\b(\w*)$", line_text_before_cursor)
-        partial_word = current_word_match.group(1) if current_word_match else ""
+        partial_word, _ = extract_partial_word(self.text_area, cursor_index)
 
-        # Construct prompt for the predictor
-        prompt_end_index = f"{cursor_index}-{len(partial_word)}c" if partial_word else cursor_index
-        prompt = self.text_area.get("1.0", prompt_end_index).strip()
+        # Construct prompt for the predictor (excluding partial word)
+        prompt = get_prompt_before_cursor(self.text_area, cursor_index, exclude_partial_word=True)
 
         if not prompt and not partial_word: # Don't predict on empty editor
             self.suggestion_box.hide()
@@ -106,55 +125,46 @@ class PredictionHandler:
         self.master.after(0, lambda: self._update_suggestions_ui(suggestions, prompt, partial_word, cursor_index))
 
     def _update_suggestions_ui(self, suggestions, prompt_at_prediction_time, partial_word_at_prediction_time, cursor_index_at_prediction_time):
-        # Check if the context is still valid (user hasn't typed something else)
-        current_cursor_index = self.text_area.index(tk.INSERT)
-        current_line_text_before_cursor = self.text_area.get(f"{current_cursor_index} linestart", current_cursor_index)
-        current_partial_word_match = re.search(r"\b(\w*)$", current_line_text_before_cursor)
-        current_partial_word = current_partial_word_match.group(1) if current_partial_word_match else ""
-
-        current_prompt_end_index = f"{current_cursor_index}-{len(current_partial_word)}c" if current_partial_word else current_cursor_index
-        current_prompt = self.text_area.get("1.0", current_prompt_end_index).strip()
-
-        if (current_prompt != prompt_at_prediction_time or 
-            current_partial_word != partial_word_at_prediction_time or 
-            current_cursor_index != cursor_index_at_prediction_time):
-            # Context changed, predictions are outdated
+        """Update UI with suggestions if context is still valid."""
+        # Validate context hasn't changed
+        if not self._is_context_still_valid(prompt_at_prediction_time,
+                                            partial_word_at_prediction_time,
+                                            cursor_index_at_prediction_time):
             self.suggestion_box.hide()
             return
 
-        # Filter suggestions based on the partial word
-        if partial_word_at_prediction_time:
-            suggestions = [s for s in suggestions if s.lower().startswith(partial_word_at_prediction_time.lower())]
+        # Filter and display suggestions
+        filtered_suggestions = self._filter_suggestions(suggestions, partial_word_at_prediction_time)
 
-        if suggestions:
-            # Use inline ghost text instead of suggestion box
-            suggestion = suggestions[0]  # Take the first suggestion
-            # Remove the partial word from the suggestion
-            if partial_word_at_prediction_time and suggestion.lower().startswith(partial_word_at_prediction_time.lower()):
-                ghost_text = suggestion[len(partial_word_at_prediction_time):]
-            else:
-                ghost_text = suggestion
-            self._display_inline_suggestion(ghost_text)
+        if filtered_suggestions:
+            self._show_best_suggestion(filtered_suggestions[0], partial_word_at_prediction_time)
         else:
             self._clear_ghost_text()
 
-    def _accept_suggestion(self, event=None):
-        if self.suggestion_box.is_active():
-            selection = self.suggestion_box.get_selection()
-            if selection:
-                cursor_index = self.text_area.index(tk.INSERT)
-                line_text_before_cursor = self.text_area.get(f"{cursor_index} linestart", cursor_index)
+    def _is_context_still_valid(self, expected_prompt, expected_partial_word, expected_cursor_index):
+        """Check if context hasn't changed since prediction was requested."""
+        current_cursor_index = self.text_area.index(tk.INSERT)
+        current_partial_word, _ = extract_partial_word(self.text_area, current_cursor_index)
+        current_prompt = get_prompt_before_cursor(self.text_area, current_cursor_index, exclude_partial_word=True)
 
-                # Find the current partial word to replace it
-                current_word_match = re.search(r"\b(\w*)$", line_text_before_cursor)
-                if current_word_match:
-                    start_of_partial_word = f"{cursor_index}-{len(current_word_match.group(1))}c"
-                    self.text_area.delete(start_of_partial_word, cursor_index)
+        return (current_prompt == expected_prompt and
+                current_partial_word == expected_partial_word and
+                current_cursor_index == expected_cursor_index)
 
-                self.text_area.insert(tk.INSERT, selection + " ") # Insert suggestion followed by a space
+    def _filter_suggestions(self, suggestions, partial_word):
+        """Filter suggestions based on partial word prefix matching."""
+        if not partial_word:
+            return suggestions
+        return [s for s in suggestions if s.lower().startswith(partial_word.lower())]
 
-                self.suggestion_box.hide()
-                return "break" # Prevents default Tab/Enter behavior
+    def _show_best_suggestion(self, suggestion, partial_word):
+        """Display the best suggestion as inline ghost text."""
+        # Remove the partial word prefix from suggestion
+        if partial_word and suggestion.lower().startswith(partial_word.lower()):
+            ghost_text = suggestion[len(partial_word):]
+        else:
+            ghost_text = suggestion
+        self._display_inline_suggestion(ghost_text)
 
     def _display_inline_suggestion(self, suggestion):
         """Display suggestion as inline ghost text"""

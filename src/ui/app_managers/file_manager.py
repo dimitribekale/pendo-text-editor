@@ -5,6 +5,7 @@ import tempfile
 import shutil
 import logging
 from ..editor_frame import EditorFrame
+from ..utils.file_io_utils import check_file_size_limit, read_file_with_encoding_fallback, write_file_atomic
 from backend.app_config import get_value
 
 # Configure logging
@@ -15,98 +16,52 @@ class FileManager:
         self.app = app
 
     def _check_file_size(self, file_path, max_size_mb=10):
-        """
-        Check if file is withing acceptable limits.
-        """
-        try:
-            file_size = os.path.getsize(file_path)
-            max_size_bytes = max_size_mb * 1024 * 1024
+        """Check if file is within acceptable limits (UI wrapper for utility)."""
+        is_valid, error_msg = check_file_size_limit(file_path, max_size_mb)
+        if not is_valid:
+            messagebox.showerror("File Too Large", error_msg)
+        return is_valid
 
-            if file_size > max_size_bytes:
-                messagebox.showerror(
-                    "File Too Large",
-                    f"File size ({file_size / 1024 / 1024:.1f} MB) exceeds maximum allowed size ({max_size_mb} MB).\n\n"
-                    f"Please use a specialized editor for large files."
-                )
-                return False
-            return True
-        except OSError as e:
-            messagebox.showerror("Error", f"Cannot access file: {e}")
-            return False
-        
     def _read_file_safe(self, file_path):
-        """
-        Safely read file with encoding detection and error handling.
-        Returns file contents as a string, or None if failed.
-        """
-        # Try UTF-8
-        try:
-            with open(file_path, "r", encoding="utf-8") as file:
-                return file.read()
-        except UnicodeDecodeError:
-            # UTF-8 failed, try with Latin-1
-            try:
-                with open(file_path, "r", encoding="latin-1") as file:
-                    content = file.read()
-                    messagebox.showwarning(
-                        "Encoding Warning",
-                        "File was opened with Latin-1 encoding.\n"
-                        "Some characters may not display correctly."
-                    )
-                    return content
-            except Exception as e:
-                messagebox.showerror(
-                    "Encoding Error",
-                    f"Cannot read file with supported encodings.\n\n{e}"
-                )
-                return None
-        except Exception as e:
-            messagebox.showerror("Error", f"Cannot read the file: {e}")
+        """Safely read file with encoding detection (UI wrapper for utility)."""
+        content, encoding, warning = read_file_with_encoding_fallback(file_path)
+
+        if content is None:
+            messagebox.showerror("Encoding Error", warning)
+            return None
+
+        if warning:
+            messagebox.showwarning("Encoding Warning", warning)
+
+        return content
 
     def _write_file_atomic(self, file_path, content):
-        """
-        Atomically write content to file (prevents data loss on failure).
-        Uses temporary file + rename strategy for atomic operation.
+        """Atomically write content to file (UI wrapper for utility)."""
+        success, error_msg = write_file_atomic(file_path, content)
+        if not success:
+            messagebox.showerror("Save Error", error_msg)
+        return success
         
-        Args:
-            file_path: Destination file path
-            content: Content to write
-        
-        Returns: True is successful, False otherwise.
+    def _create_configured_editor_frame(self):
         """
-        try:
-            # Create a temp file in the directory (same filesystem for atomic rename)
-            dir_path = os.path.dirname(file_path) or "."
-            fd, temp_path = tempfile.mkstemp(dir=dir_path, prefix=".tmp_", suffix=".txt")
+        Create a new editor frame with standard configuration.
 
-            try:
-                # Write to temp file
-                with os.fdopen(fd, "w", encoding="utf-8") as temp_file:
-                    temp_file.write(content)
-                
-                # Atomic rename (replaces original file)
-                # On Windows, the target need to be removed first
-                if os.name == "nt" and os.path.exists(file_path):
-                    os.remove(file_path)
-                shutil.move(temp_path, file_path)
-                return True
-            
-            except Exception as e:
-                # Clean up temp file on error
-                try:
-                    os.remove(temp_path)
-                except Exception as cleanup_error:
-                    import logging
-                    logging.error(f"Failed to clean up temporary file {temp_path}: {cleanup_error}")
-                raise e
-        except Exception as e:
-            messagebox.showerror(
-                "Save Error",
-                f"Cannot save file: {e}\n\n"
-                f"Your changes have NOT been saved."
-            )
-            return False
-        
+        Returns:
+            EditorFrame: Configured editor frame ready to be added to notebook
+        """
+        editor_frame = EditorFrame(
+            self.app.notebook,
+            theme=self.app.theme,
+            change_callback=self.app._on_change,
+            predictor=self.app.model_manager.get_predictor()
+        )
+
+        # Apply standard post-creation configuration
+        self.app._bind_context_menu(editor_frame)
+        self.app._apply_settings(self.app.app_config)
+
+        return editor_frame
+
     def new_file(self, event=None):
         """
         Create a new untitled file in a new tab.
@@ -114,15 +69,21 @@ class FileManager:
         Args:
             event: Optional event object from UI binding
         """
-        editor_frame = EditorFrame(self.app.notebook,
-                                   theme=self.app.theme,
-                                   change_callback=self.app._on_change,
-                                   predictor=self.app.model_manager.get_predictor())
+        editor_frame = self._create_configured_editor_frame()
         editor_frame.file_path = None
+
         self.app.notebook.add(editor_frame, text="Untitled")
         self.app.notebook.select(editor_frame)
-        self.app._bind_context_menu(editor_frame)
-        self.app._apply_settings(self.app.app_config) # Apply settings to new tab
+        editor_frame.text_area.edit_modified(False)
+
+    def _create_editor_frame_with_file(self, file_path, content):
+        """Create and configure an editor frame with file content."""
+        editor_frame = self._create_configured_editor_frame()
+        editor_frame.file_path = file_path
+        editor_frame.set_text(content)
+
+        self.app.notebook.add(editor_frame, text=os.path.basename(file_path))
+        self.app.notebook.select(editor_frame)
         editor_frame.text_area.edit_modified(False)
 
     def open_file(self, event=None):
@@ -134,32 +95,27 @@ class FileManager:
         """
         file_path = filedialog.askopenfilename(defaultextension=".txt",
                                                filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
-        if file_path:
-            logging.info(f"Opening file: {file_path}")
-            max_size = get_value(self.app.app_config, "file.max_size_mb", 10)
 
-            if not self._check_file_size(file_path, max_size):
-                logging.warning(f"File too large: {file_path}")
-                return # File too large
+        if not file_path:
+            return
 
-            content = self._read_file_safe(file_path)
-            if content is None:
-                logging.error(f"Failed to read file: {file_path}")
-                return # Read failed
+        logging.info(f"Opening file: {file_path}")
 
-            editor_frame = EditorFrame(self.app.notebook,
-                                       theme=self.app.theme,
-                                       change_callback=self.app._on_change,
-                                       predictor=self.app.model_manager.get_predictor())
-            editor_frame.file_path = file_path
-            editor_frame.set_text(content)
-            self.app.notebook.add(editor_frame,
-                                  text=os.path.basename(file_path))
-            self.app.notebook.select(editor_frame)
-            self.app._bind_context_menu(editor_frame)
-            self.app._apply_settings(self.app.app_config) # Apply settings to new tab
-            editor_frame.text_area.edit_modified(False)
-            logging.info(f"Successfully opened file: {file_path}")
+        # Validate and read file
+        max_size = get_value(self.app.app_config, "file.max_size_mb", 10)
+
+        if not self._check_file_size(file_path, max_size):
+            logging.warning(f"File too large: {file_path}")
+            return
+
+        content = self._read_file_safe(file_path)
+        if content is None:
+            logging.error(f"Failed to read file: {file_path}")
+            return
+
+        # Create editor frame with loaded content
+        self._create_editor_frame_with_file(file_path, content)
+        logging.info(f"Successfully opened file: {file_path}")
 
     def save_file(self, event=None):
         """

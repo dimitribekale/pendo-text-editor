@@ -5,6 +5,7 @@ import threading
 from .editor.line_numbers_widget import LineNumbers
 from .suggestion_box import SuggestionBox
 from .editor.prediction_handler import PredictionHandler
+from .utils.text_utils import extract_partial_word
 
 class EditorFrame(ttk.Frame):
     def __init__(self, master, theme, change_callback, predictor, **kwargs):
@@ -54,23 +55,21 @@ class EditorFrame(ttk.Frame):
         self.linenumbers.redraw()
 
     def _accept_suggestion(self, event=None):
-        # This method is called by the SuggestionBox via prediction_handler
+        """Accept selected suggestion from suggestion box."""
         if self.suggestion_box.is_active():
             selection = self.suggestion_box.get_selection()
             if selection:
                 cursor_index = self.text_area.index(tk.INSERT)
-                line_text_before_cursor = self.text_area.get(f"{cursor_index} linestart", cursor_index)
-                
-                # Find the current partial word to replace it
-                current_word_match = re.search(r"\b(\w*)$", line_text_before_cursor)
-                if current_word_match:
-                    start_of_partial_word = f"{cursor_index}-{len(current_word_match.group(1))}c"
-                    self.text_area.delete(start_of_partial_word, cursor_index)
+                partial_word, start_of_word = extract_partial_word(self.text_area, cursor_index)
 
-                self.text_area.insert(tk.INSERT, selection + " ") # Insert suggestion followed by a space
-                
+                # Replace partial word with full suggestion
+                if partial_word:
+                    self.text_area.delete(start_of_word, cursor_index)
+
+                self.text_area.insert(tk.INSERT, selection + " ")
+
                 self.suggestion_box.hide()
-                return "break" # Prevents default Tab/Enter behavior
+                return "break"  # Prevents default Tab/Enter behavior
 
     def get_text(self):
         return self.text_area.get(1.0, tk.END)
