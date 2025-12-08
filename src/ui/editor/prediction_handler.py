@@ -166,12 +166,14 @@ class PredictionHandler:
         self.text_area.insert(cursor_pos, suggestion, "ghost_text")
         self.text_area.mark_set("ghost_start", cursor_pos)
         self.text_area.mark_set("ghost_end", f"{cursor_pos}+{len(suggestion)}c")
+        logging.debug(f"Ghost text displayed: '{suggestion}' at position {cursor_pos}")
 
     def _clear_ghost_text(self):
         """Remove ghost text"""
         if self.text_area.tag_ranges("ghost_text"):
             try:
                 self.text_area.delete("ghost_start", "ghost_end")
+                logging.debug("Ghost text cleared")
             except tk.TclError:
                 # Marks might not exist, ignore
                 pass
@@ -187,8 +189,10 @@ class PredictionHandler:
             except tk.TclError:
                 # Marks might not exist, ignore
                 pass
+            logging.debug("Ghost text accepted via Tab key")
             return "break"  # Prevent default Tab behavior
         # If no ghost text, allow default Tab behavior
+        logging.debug("Tab pressed but no ghost text present")
         return None
 
     def cleanup(self):
