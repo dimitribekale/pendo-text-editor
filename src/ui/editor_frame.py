@@ -47,9 +47,7 @@ class EditorFrame(ttk.Frame):
 
         # Event Bindings
         self.text_area.bind("<<Modified>>", self.change_callback)
-        # Delegate key and mouse events to the prediction handler
-        self.text_area.bind("<Button-1>", self.prediction_handler._on_mouse_click)
-        self.text_area.bind("<KeyRelease>", self.prediction_handler._on_key_release)
+        # Note: Key and mouse events are bound in PredictionHandler.__init__() to avoid duplicate bindings
 
     def _on_scroll(self, *args):
         self.scrollbar.set(*args)
@@ -83,3 +81,20 @@ class EditorFrame(ttk.Frame):
 
     def set_font(self, font_family, font_size):
         self.text_area.config(font=(font_family, font_size))
+
+    def cleanup(self):
+        """Clean up resources when tab is closed"""
+        # Unbind event listeners
+        self.text_area.unbind("<<Modified>>")
+
+        # Cleanup prediction handler
+        if hasattr(self, 'prediction_handler'):
+            self.prediction_handler.cleanup()
+
+        # Destroy suggestion box
+        if hasattr(self, 'suggestion_box'):
+            self.suggestion_box.destroy()
+
+        # Clear references
+        self.text_area = None
+        self.prediction_handler = None

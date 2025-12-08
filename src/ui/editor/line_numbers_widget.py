@@ -9,7 +9,9 @@ class LineNumbers(tk.Canvas):
         self.redraw()
 
     def redraw(self, *args):
-        self.delete("all")
+        """Redraw line numbers (optimized)"""
+        # Delete only old line numbers, not all canvas items
+        self.delete("line_number")
 
         i = self.text_widget.index("@0,0")
         while True:
@@ -18,5 +20,5 @@ class LineNumbers(tk.Canvas):
                 break
             y = dline[1]
             linenum = str(i).split(".")[0]
-            self.create_text(self.winfo_width() - 5, y, anchor="ne", text=linenum, fill=self.theme["line_number_fg"])
+            self.create_text(self.winfo_width() - 5, y, anchor="ne", text=linenum, fill=self.theme["line_number_fg"], tag="line_number")
             i = self.text_widget.index(f"{i}+1line")

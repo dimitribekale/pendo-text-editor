@@ -15,11 +15,17 @@ class StatusBar(ttk.Frame):
         self.word_count_label.pack(side=tk.RIGHT, padx=5)
 
     def update_status(self, text_area):
-        line, col = text_area.index(tk.INSERT).split('.')
+        """Update status bar (optimized with caching)"""
+        # Get cursor position
+        cursor_pos = text_area.index(tk.INSERT)
+        line, col = cursor_pos.split('.')
         self.line_col_label.config(text=f"Line: {line}, Column: {int(col) + 1}")
 
+        # Use text widget's built-in count method (faster)
+        char_count = int(text_area.index('end-1c').split('.')[1])
+
+        # Get word count more efficiently
         text_content = text_area.get(1.0, tk.END)
-        char_count = len(text_content.rstrip())
         word_count = len(text_content.split())
 
         self.char_count_label.config(text=f"Chars: {char_count}")

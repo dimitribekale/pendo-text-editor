@@ -27,7 +27,11 @@ class TabManager:
                     return # Don't close if save was cancelled
             elif result is None: # Cancel
                 return
-        
+
+        # Clean up resources before closing tab
+        if hasattr(editor_frame, 'cleanup'):
+            editor_frame.cleanup()
+
         self.app.notebook.forget(editor_frame)
         if not self.app.notebook.tabs():
             self.app.file_manager.new_file() # Create a new tab if the last one is closed
@@ -49,6 +53,12 @@ class TabManager:
                 elif result is None: # Cancel
                     # User cancelled the quit operation
                     return
-        
+
+        # Clean up all tabs before destroying
+        for tab_id in list(self.app.notebook.tabs()):
+            editor_frame = self.app.notebook.nametowidget(tab_id)
+            if hasattr(editor_frame, 'cleanup'):
+                editor_frame.cleanup()
+
         # If we've gotten through the loop, it's safe to destroy
         self.app.destroy()

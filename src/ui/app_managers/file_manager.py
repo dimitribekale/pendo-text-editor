@@ -3,8 +3,12 @@ from tkinter import filedialog, messagebox
 import os
 import tempfile
 import shutil
+import logging
 from ..editor_frame import EditorFrame
 from backend.app_config import get_value
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class FileManager:
     def __init__(self, app):
@@ -91,8 +95,9 @@ class FileManager:
                 # Clean up temp file on error
                 try:
                     os.remove(temp_path)
-                except:
-                    pass
+                except Exception as cleanup_error:
+                    import logging
+                    logging.error(f"Failed to clean up temporary file {temp_path}: {cleanup_error}")
                 raise e
         except Exception as e:
             messagebox.showerror(
@@ -103,6 +108,12 @@ class FileManager:
             return False
         
     def new_file(self, event=None):
+        """
+        Create a new untitled file in a new tab.
+
+        Args:
+            event: Optional event object from UI binding
+        """
         editor_frame = EditorFrame(self.app.notebook,
                                    theme=self.app.theme,
                                    change_callback=self.app._on_change,
@@ -115,18 +126,27 @@ class FileManager:
         editor_frame.text_area.edit_modified(False)
 
     def open_file(self, event=None):
+        """
+        Open an existing file from disk and display it in a new tab.
+
+        Args:
+            event: Optional event object from UI binding
+        """
         file_path = filedialog.askopenfilename(defaultextension=".txt",
                                                filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
         if file_path:
+            logging.info(f"Opening file: {file_path}")
             max_size = get_value(self.app.app_config, "file.max_size_mb", 10)
 
             if not self._check_file_size(file_path, max_size):
+                logging.warning(f"File too large: {file_path}")
                 return # File too large
-            
+
             content = self._read_file_safe(file_path)
             if content is None:
+                logging.error(f"Failed to read file: {file_path}")
                 return # Read failed
-            
+
             editor_frame = EditorFrame(self.app.notebook,
                                        theme=self.app.theme,
                                        change_callback=self.app._on_change,
@@ -139,23 +159,46 @@ class FileManager:
             self.app._bind_context_menu(editor_frame)
             self.app._apply_settings(self.app.app_config) # Apply settings to new tab
             editor_frame.text_area.edit_modified(False)
+            logging.info(f"Successfully opened file: {file_path}")
 
     def save_file(self, event=None):
+        """
+        Save the current file. If no file path exists, calls save_as_file.
+
+        Args:
+            event: Optional event object from UI binding
+
+        Returns:
+            bool: True if save succeeded, False otherwise
+        """
         editor_frame = self.app.tab_manager.get_current_editor_frame()
         if not editor_frame:
             return False # Indicate failure
 
         if editor_frame.file_path:
+            logging.info(f"Saving file: {editor_frame.file_path}")
             success = self._write_file_atomic(editor_frame.file_path,
                                               editor_frame.get_text())
             if success:
                 editor_frame.text_area.edit_modified(False)
                 self.app._on_change() # Update title
+                logging.info(f"Successfully saved file: {editor_frame.file_path}")
+            else:
+                logging.error(f"Failed to save file: {editor_frame.file_path}")
             return success
         else:
             return self.save_as_file()
 
     def save_as_file(self, event=None):
+        """
+        Save the current file with a new name/location.
+
+        Args:
+            event: Optional event object from UI binding
+
+        Returns:
+            bool: True if save succeeded, False otherwise
+        """
         editor_frame = self.app.tab_manager.get_current_editor_frame()
         if not editor_frame:
             return False # Indicate failure
