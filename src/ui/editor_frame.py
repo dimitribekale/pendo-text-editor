@@ -1,14 +1,12 @@
 import tkinter as tk
 from tkinter import ttk
-import re
-import threading
 from .editor.line_numbers_widget import LineNumbers
 from .suggestion_box import SuggestionBox
 from .editor.prediction_handler import PredictionHandler
 from .utils.text_utils import extract_partial_word
 
 class EditorFrame(ttk.Frame):
-    def __init__(self, master, theme, change_callback, predictor, **kwargs):
+    def __init__(self, master, theme, change_callback, predictor, interaction_log=None, **kwargs):
         super().__init__(master, **kwargs)
         self.theme = theme
         self.change_callback = change_callback
@@ -42,8 +40,8 @@ class EditorFrame(ttk.Frame):
             master=self,
             text_area=self.text_area,
             predictor=self.predictor,
-            suggestion_box=self.suggestion_box,
-            change_callback=self.change_callback
+            change_callback=self.change_callback,
+            interaction_log=interaction_log
         )
 
         # Event Bindings
@@ -72,6 +70,7 @@ class EditorFrame(ttk.Frame):
                 return "break"  # Prevents default Tab/Enter behavior
 
     def get_text(self):
+        self.prediction_handler.dismiss()  # never save an unaccepted suggestion
         return self.text_area.get(1.0, tk.END)
 
     def set_text(self, text):

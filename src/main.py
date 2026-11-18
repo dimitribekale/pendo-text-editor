@@ -9,6 +9,7 @@ from ui.toolbar import Toolbar
 from ui.settings_window import SettingsWindow
 from backend.app_config import load_config, get_value
 from backend.model_manager import ModelManager
+from backend.interactions.interaction_log import open_interaction_log
 from ui.theme import get_system_theme, DARK_THEME, LIGHT_THEME
 from PIL import Image, ImageTk
 from ui.app_managers.file_manager import FileManager
@@ -70,6 +71,7 @@ class Pendo(tk.Tk):
 
         # Instantiate Managers
         self.model_manager = ModelManager()
+        self.interaction_log = open_interaction_log(self.app_config)
         self.file_manager = FileManager(self)
         self.tab_manager = TabManager(self)
 

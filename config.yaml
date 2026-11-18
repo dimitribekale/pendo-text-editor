@@ -8,10 +8,19 @@ theme:
 
 prediction:
   enable: true
-  debounce_delay: 300
-  num_suggestions: 5
-  model_path: distilgpt2
-  max_context_length: 500
+  # Hugging Face hub id, or a model directory relative to the project root
+  model_path: bekalebendong/pendo-smollm2-135m-writing
+  device: auto            # auto, cpu or cuda
+  debounce_delay: 300     # ms to wait after the last key before predicting
+  max_context_length: 500 # characters before the cursor given to the model
+  num_suggestions: 5      # candidate words explored per prediction
+  max_word_tokens: 4      # longest word, in model tokens
+  min_confidence: 0.3     # only show a suggestion at least this probable
+
+learning:
+  log_interactions: true # record shown/accepted/rejected suggestions, on this machine only
+  log_path: null         # null = ~/.pendo/interactions.jsonl
+  context_chars: 200     # text before the cursor stored with each record (0 = none)
 
 file:
   default_encoding: utf-8
