@@ -53,7 +53,8 @@ class FileManager:
             self.app.notebook,
             theme=self.app.theme,
             change_callback=self.app._on_change,
-            predictor=self.app.model_manager.get_predictor()
+            predictor=self.app.model_manager.get_predictor(),
+            interaction_log=self.app.interaction_log
         )
 
         # Apply standard post-creation configuration

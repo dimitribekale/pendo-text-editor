@@ -9,13 +9,11 @@ Pendo is a modern, feature-rich text editor built with Python's Tkinter. It offe
 *   **Modern UI:** Built with `tkinter.ttk` for a native look and feel, adapting to system light/dark themes on Windows.
 *   **Tabbed Interface:** Edit multiple files concurrently with a tabbed document interface.
 *   **Real-time Predictive Text:**
-    *   Powered by a fine-tuned HuggingFace `bekalebendong/pendo-distilgpt2-finetuned` model.
-    *   Fine-tuned on 10% of the `Salesforce/wikitext - wikitext-103-v1` dataset with an evaluation loss of 2.91.
-    *   Suggestions appear inline as you type.
-    *   Accept suggestions with `Tab`, `Enter`, or mouse click.
-    *   Dynamic suggestion box sizing to match content.
-    *   Background threading for predictions to maintain UI responsiveness.
-    *   Debouncing for prediction calls to prevent lag.
+    *   Completes the word you are typing as gray inline text; press `Tab` to accept, keep typing to ignore.
+    *   Suggestions always start with the letters already typed and keep their capitalization.
+    *   A suggestion is shown only when the model is confident enough (`prediction.min_confidence`).
+    *   The model, device, context size and debounce delay are set in `config.yaml`.
+    *   Predictions run on a background thread so the UI stays responsive.
 *   **Line Numbers Gutter:** Displays logical line numbers alongside the text area.
 *   **Status Bar:** Provides real-time information including line, column, character, and word counts.
 *   **Context Menu:** Right-click for quick access to common editing actions (Cut, Copy, Paste, Undo, Redo).
@@ -72,39 +70,41 @@ To run the Pendo Text Editor, execute the `main.py` file:
 python src/main.py
 ```
 
-## Model Fine-tuning (Advanced)
+## Configuration
 
-The predictive text feature uses a fine-tuned HuggingFace model. If you wish to fine-tune the model yourself on a custom dataset or improve its performance, follow these steps. **Note: Fine-tuning requires a GPU.**
+Prediction is configured under `prediction:` in `config.yaml`. `model_path` accepts a HuggingFace Hub id or a model directory relative to the project root (for example `src/model_training/output/student_model`).
 
-1.  **Navigate to the model training scripts:**
-    ```bash
-    cd src/model_training/scripts
-    ```
+## Learning from your typing
 
-2.  **Download the dataset:**
-    ```bash
-    python download_data.py
-    ```
-    _This will download a subset of the OpenWebText dataset to `src/model_training/data/raw/`._
+Each suggestion that is shown is recorded with its outcome (accepted, rejected, dismissed), the model's confidence, and the word you actually typed. The records stay on your machine in `~/.pendo/interactions.jsonl` and are the data later personalization is built on. Turn this off, move the file, or limit the stored context under `learning:` in `config.yaml`.
 
-3.  **Preprocess the data:**
-    ```bash
-    python preprocess_data.py
-    ```
-    _This will tokenize and format the data, saving it to `src/model_training/data/processed/`._
+## Tests
 
-4.  **Fine-tune the model:**
-    ```bash
-    python train_model.py
-    ```
-    _**Ensure you are running this in a GPU environment.** This will save the fine-tuned model to `src/model_training/output/final_model/`._
+```bash
+python -m pytest
+```
 
-5.  **Integrate the fine-tuned model:**
-    *   Once fine-tuning is complete, open `src/backend/prediction_model.py`.
-    *   Change the `model='distilgpt2'` line in the `Prediction` class's `__init__` method to point to your fine-tuned model's directory or HuggingFace Hub ID:
-        ```python
-        self.generator = pipeline('text-generation', model='bekalebendong/pendo-distilgpt2-finetuned')
-        ```
+## Measuring prediction quality
+
+The typing simulator replays a text one keystroke at a time and reports keystroke savings, suggestion precision and latency. Run it from the `src` directory:
+
+```bash
+python -m evaluation.build_corpora                      # once: writes held-out texts to evaluation/data/
+python -m evaluation.run_simulation evaluation/data/general.txt
+python -m evaluation.run_simulation evaluation/data/wiki.txt --model src/model_training/output/student_model
+```
+
+## Model Training (Advanced)
+
+The default model, [`bekalebendong/pendo-smollm2-135m-writing`](https://huggingface.co/bekalebendong/pendo-smollm2-135m-writing), is SmolLM2-135M fine-tuned on six kinds of writing (emails, blogs, fiction, academic abstracts, news, encyclopedia). A faster alternative is [`bekalebendong/pendo-distilgpt2-writing`](https://huggingface.co/bekalebendong/pendo-distilgpt2-writing). To reproduce them (a GPU is required), run from the `src` directory:
+
+```bash
+python -m model_training.data_preprocessing.build_writing_corpus   # builds data/writing/ (train, val, test)
+CUDA_VISIBLE_DEVICES=0 python -m model_training.finetune.train --model HuggingFaceTB/SmolLM2-135M --run-name smollm2-135m-writing
+python -m model_training.upload_to_hub.publish_writing_models      # optional: upload to your Hugging Face account
+```
+
+Trained models are written to `src/model_training/output/<run-name>/final`; point `prediction.model_path` at that directory to use one in the editor. The earlier GPT-2 teacher/student distillation scripts remain under `src/model_training/training/`.
 
 ## Contributing
 
