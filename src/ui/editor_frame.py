@@ -1,76 +1,46 @@
+"""One editor tab: the text area, its line numbers and its predictions."""
+
 import tkinter as tk
 from tkinter import ttk
+
 from .editor.line_numbers_widget import LineNumbers
-from .suggestion_box import SuggestionBox
 from .editor.prediction_handler import PredictionHandler
-from .utils.text_utils import extract_partial_word
+
 
 class EditorFrame(ttk.Frame):
+    """A text area with line numbers, a scrollbar and inline suggestions."""
+
     def __init__(self, master, theme, change_callback, predictor, interaction_log=None, **kwargs):
         super().__init__(master, **kwargs)
-        self.theme = theme
-        self.change_callback = change_callback
-
-        # Core UI Components
+        self.file_path = None
         self.text_area = tk.Text(
-            self, 
-            wrap=tk.WORD, 
-            undo=True, 
-            bg=self.theme["text_bg"],
-            fg=self.theme["text_fg"],
-            insertbackground=self.theme["cursor"],
-            selectbackground=self.theme["select_bg"]
+            self,
+            wrap=tk.WORD,
+            undo=True,
+            bg=theme["text_bg"],
+            fg=theme["text_fg"],
+            insertbackground=theme["cursor"],
+            selectbackground=theme["select_bg"],
         )
         self.text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        self.linenumbers = LineNumbers(self, self.text_area, theme=self.theme, width=30)
+        self.linenumbers = LineNumbers(self, self.text_area, theme=theme, width=30)
         self.linenumbers.pack(side=tk.LEFT, fill=tk.Y)
-
         self.scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.text_area.yview)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
         self.text_area.config(yscrollcommand=self._on_scroll)
 
-        # Prediction and Suggestion Engine
-        self.predictor = predictor
-        self.suggestion_box = SuggestionBox(self, self._accept_suggestion, self.text_area)
-        
-        # Prediction Handler
         self.prediction_handler = PredictionHandler(
             master=self,
             text_area=self.text_area,
-            predictor=self.predictor,
-            change_callback=self.change_callback,
-            interaction_log=interaction_log
+            predictor=predictor,
+            change_callback=change_callback,
+            interaction_log=interaction_log,
         )
-
-        # Event Bindings
-        self.text_area.bind("<<Modified>>", self.change_callback)
-        # Note: Key and mouse events are bound in PredictionHandler.__init__() to avoid duplicate bindings
-
-    def _on_scroll(self, *args):
-        self.scrollbar.set(*args)
-        self.linenumbers.redraw()
-
-    def _accept_suggestion(self, event=None):
-        """Accept selected suggestion from suggestion box."""
-        if self.suggestion_box.is_active():
-            selection = self.suggestion_box.get_selection()
-            if selection:
-                cursor_index = self.text_area.index(tk.INSERT)
-                partial_word, start_of_word = extract_partial_word(self.text_area, cursor_index)
-
-                # Replace partial word with full suggestion
-                if partial_word:
-                    self.text_area.delete(start_of_word, cursor_index)
-
-                self.text_area.insert(tk.INSERT, selection + " ")
-
-                self.suggestion_box.hide()
-                return "break"  # Prevents default Tab/Enter behavior
+        self.text_area.bind("<<Modified>>", change_callback)
 
     def get_text(self):
-        self.prediction_handler.dismiss()  # never save an unaccepted suggestion
+        """The document text; an unaccepted suggestion is never part of it."""
+        self.prediction_handler.dismiss()
         return self.text_area.get(1.0, tk.END)
 
     def set_text(self, text):
@@ -81,18 +51,10 @@ class EditorFrame(ttk.Frame):
         self.text_area.config(font=(font_family, font_size))
 
     def cleanup(self):
-        """Clean up resources when tab is closed"""
-        # Unbind event listeners
+        """Release the prediction worker when the tab is closed."""
         self.text_area.unbind("<<Modified>>")
+        self.prediction_handler.cleanup()
 
-        # Cleanup prediction handler
-        if hasattr(self, 'prediction_handler'):
-            self.prediction_handler.cleanup()
-
-        # Destroy suggestion box
-        if hasattr(self, 'suggestion_box'):
-            self.suggestion_box.destroy()
-
-        # Clear references
-        self.text_area = None
-        self.prediction_handler = None
+    def _on_scroll(self, *args):
+        self.scrollbar.set(*args)
+        self.linenumbers.redraw()

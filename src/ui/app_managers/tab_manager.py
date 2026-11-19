@@ -14,6 +14,19 @@ class TabManager:
         selected_tab = self.app.notebook.select()
         return self.app.notebook.nametowidget(selected_tab)
 
+    def refresh_title(self, editor_frame):
+        """Show an asterisk on the tab while it has unsaved changes."""
+        notebook = self.app.notebook
+        try:
+            modified = editor_frame.text_area.edit_modified()
+            title = notebook.tab(editor_frame, "text")
+            if modified and not title.endswith("*"):
+                notebook.tab(editor_frame, text=title + "*")
+            elif not modified and title.endswith("*"):
+                notebook.tab(editor_frame, text=title[:-1])
+        except tk.TclError:  # the tab is being closed
+            pass
+
     def _handle_unsaved_changes(self, editor_frame):
         """
         Prompt user to save changes if needed.

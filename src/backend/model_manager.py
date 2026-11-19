@@ -27,7 +27,3 @@ class ModelManager:
             logger.info("Loading prediction model %s", settings.model_path)
             self._predictor = WordPredictor.from_settings(settings)
         return self._predictor
-
-    def is_loaded(self):
-        """Check whether the model has been loaded yet."""
-        return self._predictor is not None
