@@ -4,6 +4,7 @@ import time
 
 from .interaction import ACCEPTED, DISMISSED, REJECTED
 from .pending_suggestion import PendingSuggestion
+from .typing_rhythm import TypingRhythm
 
 
 class InteractionTracker:
@@ -18,6 +19,8 @@ class InteractionTracker:
         self._log = log
         self._model = model_name
         self._clock = clock
+        self._rhythm = TypingRhythm(clock)
+        self._last_outcome = None
         self._visible = None
         self._awaiting_word = []
         self._typed_word = ""
@@ -32,14 +35,16 @@ class InteractionTracker:
             completion=completion,
             probability=probability,
             model=self._model,
+            typing_interval_ms=self._rhythm.interval_ms,
+            previous_outcome=self._last_outcome,
             shown_at=self._clock(),
         )
 
-    def accepted(self):
-        """The user pressed Tab."""
+    def accepted(self, part=None):
+        """The user took the suggestion, or only its first `part`."""
         pending = self._hide()
         if pending:
-            self._write(pending, ACCEPTED, pending.prefix + pending.completion)
+            self._write(pending, ACCEPTED, pending.prefix + (part or pending.completion))
 
     def dismissed(self):
         """The suggestion disappeared without the user typing over it."""
@@ -56,6 +61,7 @@ class InteractionTracker:
 
     def observe(self, context):
         """Called after each key: resolves rejections once the word ends."""
+        self._rhythm.key()
         if not self._awaiting_word:
             return
         if context.prefix:
@@ -82,4 +88,5 @@ class InteractionTracker:
         self._awaiting_word = []
 
     def _write(self, pending, outcome, actual_word=None):
+        self._last_outcome = outcome
         self._log.append(pending.finish(outcome, actual_word))

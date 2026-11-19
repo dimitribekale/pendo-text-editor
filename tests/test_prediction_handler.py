@@ -4,6 +4,7 @@ import time
 import tkinter as tk
 from types import SimpleNamespace
 
+from backend.prediction.completion import Completion
 from backend.prediction.suggestion import Suggestion
 from tests.fakes import FakePredictor
 from ui.editor.cursor_context import read_cursor_context
@@ -69,7 +70,7 @@ def test_stale_result_is_discarded_when_text_changed(text_area):
     text_area.insert(tk.INSERT, "Hello wo")
     context = read_cursor_context(text_area, max_chars=500)
     text_area.insert(tk.INSERT, "n")
-    handler._show(context, [Suggestion("world", 0.9)])
+    handler._show(context, Completion("rld", 0.9))
     assert text_area.get("1.0", "end-1c") == "Hello won"
     handler.cleanup()
 

@@ -38,7 +38,7 @@ def test_low_confidence_suggestion_is_not_shown():
 def test_typing_stops_querying_once_a_word_is_accepted():
     predictor = FakePredictor({("", "h"): [Suggestion("hello", 0.9)]})
     TypingSimulator(predictor, min_confidence=0.5).run("hello")
-    assert predictor.calls == [("", ""), ("", "h")]
+    assert predictor.calls == [("", ""), ("", "h"), ("hello ", "")]
 
 
 def test_latency_is_recorded_for_every_query():

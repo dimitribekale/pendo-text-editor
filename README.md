@@ -12,6 +12,7 @@ Pendo is a modern, feature-rich text editor built with Python's Tkinter. It offe
     *   Completes the word you are typing as gray inline text; press `Tab` to accept, keep typing to ignore.
     *   Suggestions always start with the letters already typed and keep their capitalization.
     *   A suggestion is shown only when the model is confident enough (`prediction.min_confidence`).
+    *   When the following words are also likely, the suggestion continues past the current word (up to `prediction.max_phrase_words`). `Tab` accepts all of it, `Ctrl+Right` accepts one word at a time.
     *   The model, device, context size and debounce delay are set in `config.yaml`.
     *   Predictions run on a background thread so the UI stays responsive.
 *   **Line Numbers Gutter:** Displays logical line numbers alongside the text area.
@@ -72,11 +73,11 @@ python src/main.py
 
 ## Configuration
 
-Prediction is configured under `prediction:` in `config.yaml`. `model_path` accepts a HuggingFace Hub id or a model directory relative to the project root (for example `src/model_training/output/student_model`).
+Prediction is configured under `prediction:` in `config.yaml`. `model_path` accepts a HuggingFace Hub id or a model directory relative to the project root (for example `src/model_training/output/smollm2-135m-writing/final`).
 
 ## Learning from your typing
 
-Each suggestion that is shown is recorded with its outcome (accepted, rejected, dismissed), the model's confidence, and the word you actually typed. The records stay on your machine in `~/.pendo/interactions.jsonl` and are the data later personalization is built on. Turn this off, move the file, or limit the stored context under `learning:` in `config.yaml`.
+Each suggestion that is shown is recorded with its outcome (accepted, rejected, dismissed), the model's confidence, the word you actually typed, your typing pace at that moment, and what happened to the previous suggestion. The records stay on your machine in `~/.pendo/interactions.jsonl` and are the data later personalization is built on. Turn this off, move the file, or limit the stored context under `learning:` in `config.yaml`.
 
 ## Tests
 
@@ -89,9 +90,9 @@ python -m pytest
 The typing simulator replays a text one keystroke at a time and reports keystroke savings, suggestion precision and latency. Run it from the `src` directory:
 
 ```bash
-python -m evaluation.build_corpora                      # once: writes held-out texts to evaluation/data/
-python -m evaluation.run_simulation evaluation/data/general.txt
-python -m evaluation.run_simulation evaluation/data/wiki.txt --model src/model_training/output/student_model
+python -m model_training.data_preprocessing.build_writing_corpus   # once: also writes held-out texts per genre
+python -m evaluation.run_simulation model_training/data/writing/simulator/emails.txt
+python -m evaluation.run_simulation model_training/data/writing/simulator/news.txt --model bekalebendong/pendo-distilgpt2-writing
 ```
 
 ## Model Training (Advanced)
@@ -104,7 +105,7 @@ CUDA_VISIBLE_DEVICES=0 python -m model_training.finetune.train --model HuggingFa
 python -m model_training.upload_to_hub.publish_writing_models      # optional: upload to your Hugging Face account
 ```
 
-Trained models are written to `src/model_training/output/<run-name>/final`; point `prediction.model_path` at that directory to use one in the editor. The earlier GPT-2 teacher/student distillation scripts remain under `src/model_training/training/`.
+Trained models are written to `src/model_training/output/<run-name>/final`; point `prediction.model_path` at that directory to use one in the editor.
 
 ## Contributing
 

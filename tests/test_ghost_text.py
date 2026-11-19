@@ -75,3 +75,15 @@ def test_dismissed_suggestion_leaves_no_trace_in_undo_history(text_area):
     ghost.clear()
     text_area.edit_undo()
     assert _content(text_area) == ""
+
+
+def test_accept_word_keeps_the_rest_of_the_phrase_offered(text_area):
+    _type(text_area, "see y")
+    ghost = GhostText(text_area)
+    ghost.show("ou next week")
+    assert ghost.accept_word() == ("ou", " next week")
+    assert text_area.index(tk.INSERT) == "1.7"
+    assert ghost.accept_word() == (" next", " week")
+    assert ghost.accept_word() == (" week", "")
+    assert not ghost.visible
+    assert ghost.accept_word() == ("", "")

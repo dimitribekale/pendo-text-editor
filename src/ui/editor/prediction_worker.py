@@ -14,19 +14,19 @@ class PredictionWorker:
     back directly: the UI thread polls for the result with `after`.
     """
 
-    def __init__(self, master, predictor):
+    def __init__(self, master, completer):
         self._master = master
-        self._predictor = predictor
+        self._completer = completer
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._future = None
         self._poll_timer = None
         self._closed = False
 
     def request(self, context, on_result):
-        """Predict for `context`; call `on_result(context, suggestions)` when done."""
+        """Complete for `context`; call `on_result(context, completion)` when done."""
         self.cancel()
         self._future = self._executor.submit(
-            self._predictor.predict, context.prompt, context.prefix
+            self._completer.complete, context.prompt, context.prefix
         )
         self._poll(self._future, context, on_result)
 

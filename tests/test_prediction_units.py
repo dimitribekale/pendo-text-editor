@@ -35,6 +35,11 @@ def test_already_complete_word_shows_nothing():
     assert choose_completion(suggestions, "the", min_confidence=0.3) is None
 
 
+def test_completion_that_saves_no_typing_shows_nothing():
+    suggestions = [Suggestion("cats", 0.9)]
+    assert choose_completion(suggestions, "cat", min_confidence=0.3) is None
+
+
 def test_no_suggestions_shows_nothing():
     assert choose_completion([], "x", min_confidence=0.3) is None
 

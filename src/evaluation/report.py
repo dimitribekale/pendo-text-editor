@@ -10,6 +10,7 @@ def format_report(title, result):
         ("Suggestion precision", f"{result.precision:.1%}"),
         ("Words completed", f"{result.word_coverage:.1%}"),
         ("Suggestions shown", f"{result.shown:,}"),
+        ("Accepted only in part", f"{result.shown_overreached:,}"),
         ("Latency mean", f"{result.latency_mean_ms:.0f} ms"),
         ("Latency p95", f"{result.latency_p95_ms:.0f} ms"),
     ]
