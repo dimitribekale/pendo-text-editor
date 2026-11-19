@@ -16,6 +16,8 @@ prediction:
   num_suggestions: 5      # candidate words explored per prediction
   max_word_tokens: 4      # longest word, in model tokens
   min_confidence: 0.3     # only show a suggestion at least this probable
+  max_phrase_words: 3     # longest suggestion, in words (1 = single words only)
+  min_phrase_confidence: 0.4 # add a further word only while the phrase is this probable
 
 learning:
   log_interactions: true # record shown/accepted/rejected suggestions, on this machine only

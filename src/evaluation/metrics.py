@@ -13,7 +13,8 @@ class SimulationResult:
     words: int = 0
     words_completed: int = 0
     shown: int = 0
-    shown_correct: int = 0
+    shown_correct: int = 0  # the user accepted all or the start of it
+    shown_overreached: int = 0  # accepted, but its last words were wrong
     latencies_ms: list = field(default_factory=list)
 
     @property
@@ -23,7 +24,7 @@ class SimulationResult:
 
     @property
     def precision(self):
-        """Share of displayed suggestions that were the intended word."""
+        """Share of displayed suggestions the user could accept."""
         return self.shown_correct / self.shown if self.shown else 0.0
 
     @property

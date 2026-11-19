@@ -15,6 +15,8 @@ _CONFIG_KEYS = {
     "num_suggestions": "beam_width",
     "max_word_tokens": "max_word_tokens",
     "min_confidence": "min_confidence",
+    "max_phrase_words": "max_phrase_words",
+    "min_phrase_confidence": "min_phrase_confidence",
 }
 
 
@@ -23,13 +25,15 @@ class PredictionSettings:
     """Everything that tunes prediction, with safe defaults."""
 
     enabled: bool = True
-    model_path: str = "bekalebendong/pendo-distilgpt2-wikitext"
+    model_path: str = "bekalebendong/pendo-smollm2-135m-writing"
     device: str = "auto"
     max_context_chars: int = 500
     debounce_ms: int = 300
     beam_width: int = 5
     max_word_tokens: int = 4
     min_confidence: float = 0.3
+    max_phrase_words: int = 3
+    min_phrase_confidence: float = 0.4
 
     @classmethod
     def from_config(cls, config):

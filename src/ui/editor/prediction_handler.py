@@ -1,7 +1,7 @@
 """Connects typing in a Text widget to the predictor and the ghost text."""
 
 from backend.interactions.interaction_tracker import InteractionTracker
-from backend.prediction.selection import choose_completion
+from backend.prediction.completer import Completer
 
 from .cursor_context import read_cursor_context
 from .ghost_text import GhostText
@@ -13,7 +13,7 @@ class PredictionHandler:
     """Requests a prediction after the user pauses and shows it inline.
 
     A result is displayed only if the cursor context is unchanged by the
-    time it arrives.
+    time it arrives. Tab accepts all of it, Ctrl+Right only its next word.
     """
 
     def __init__(self, master, text_area, predictor, change_callback, interaction_log=None):
@@ -22,14 +22,16 @@ class PredictionHandler:
         self._settings = predictor.settings
         self._change_callback = change_callback
         self._ghost = GhostText(text_area)
-        self._worker = PredictionWorker(master, predictor)
+        self._worker = PredictionWorker(master, Completer(predictor))
         self._tracker = InteractionTracker(interaction_log, self._settings.model_path)
         self._debounce_timer = None
+        self._probability = 0.0
 
         text_area.bind("<KeyPress>", self._on_key_press)
         text_area.bind("<KeyRelease>", self._on_key_release)
         text_area.bind("<Button-1>", self.dismiss)
         text_area.bind("<Tab>", self._on_tab)
+        text_area.bind("<Control-Right>", self._on_accept_word)
 
     def dismiss(self, event=None):
         """Remove any visible suggestion."""
@@ -51,6 +53,15 @@ class PredictionHandler:
         if not self._ghost.accept():
             return None
         self._tracker.accepted()
+        return "break"
+
+    def _on_accept_word(self, event):
+        accepted, remaining = self._ghost.accept_word()
+        if not accepted:
+            return None
+        self._tracker.accepted(accepted)
+        if remaining:
+            self._tracker.shown(self._read_context(), remaining, self._probability)
         return "break"
 
     def _on_key_release(self, event):
@@ -77,12 +88,9 @@ class PredictionHandler:
         if context.at_word_end and (context.prompt.strip() or context.prefix):
             self._worker.request(context, self._show)
 
-    def _show(self, context, suggestions):
-        if self._read_context() != context:
+    def _show(self, context, completion):
+        if completion is None or self._read_context() != context:
             return
-        completion = choose_completion(
-            suggestions, context.prefix, self._settings.min_confidence
-        )
-        if completion:
-            self._ghost.show(completion)
-            self._tracker.shown(context, completion, suggestions[0].probability)
+        self._probability = completion.probability
+        self._ghost.show(completion.text)
+        self._tracker.shown(context, completion.text, completion.probability)

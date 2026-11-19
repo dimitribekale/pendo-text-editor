@@ -2,50 +2,74 @@
 
 import re
 import time
+from dataclasses import replace
 
-from backend.prediction.selection import choose_completion
+from backend.prediction.completer import Completer
 
 from .metrics import SimulationResult
 
 _WORD = re.compile(r"[^\W_]+(?:['’][^\W_]+)*")
-_ACCEPT_KEYSTROKES = 1  # pressing Tab
 
 
 class TypingSimulator:
-    """Models a user who accepts a suggestion only when it is exactly right.
+    """Models a user who accepts exactly the correct part of a suggestion.
 
-    Before each letter of each word the predictor is asked for a completion,
-    using the same display rule as the editor. A correct completion is
-    accepted with Tab; a wrong one is ignored and typing continues.
+    Before each letter of each word the editor's own completer is asked for
+    a completion. If all of it is right it is accepted with one key (Tab).
+    If only its first words are right they are accepted one key per word.
+    If its first word is wrong it is ignored and typing continues.
     """
 
     def __init__(self, predictor, min_confidence):
-        self._predictor = predictor
-        self._min_confidence = min_confidence
+        settings = replace(predictor.settings, min_confidence=min_confidence)
+        self._completer = Completer(predictor, settings)
 
     def run(self, text):
         """Simulate typing `text` and return the collected metrics."""
         result = SimulationResult(characters=len(text))
-        for match in _WORD.finditer(text):
-            result.words += 1
-            self._type_word(text[: match.start()], match.group(), result)
+        words = list(_WORD.finditer(text))
+        result.words = len(words)
+        position = 0
+        while position < len(words):
+            position += self._type_word(text, words, position, result)
         return result
 
-    def _type_word(self, prompt, word, result):
+    def _type_word(self, text, words, position, result):
+        """Type one word; return how many words that finished (at least 1)."""
+        start, word = words[position].start(), words[position].group()
         for typed in range(len(word)):
-            prefix = word[:typed]
-            completion = self._timed_completion(prompt, prefix, result)
+            completion = self._timed_completion(text[:start], word[:typed], result)
             if completion is None:
                 continue
             result.shown += 1
-            if prefix + completion == word:
-                result.shown_correct += 1
-                result.words_completed += 1
-                result.keystrokes_saved += len(completion) - _ACCEPT_KEYSTROKES
-                return
+            offered = (word[:typed] + completion.text).split(" ")
+            taken = self._correct_words(offered, text, words, position)
+            if not taken:
+                continue
+            key_presses = 1 if taken == len(offered) else taken
+            written = words[position + taken - 1].end() - (start + typed)
+            result.keystrokes_saved += written - key_presses
+            result.shown_correct += 1
+            result.shown_overreached += taken < len(offered)
+            result.words_completed += taken
+            return taken
+        return 1
+
+    @staticmethod
+    def _correct_words(offered, text, words, position):
+        """How many leading words of the suggestion match the text ahead."""
+        count = 0
+        for offset, offered_word in enumerate(offered):
+            index = position + offset
+            if index >= len(words) or words[index].group() != offered_word:
+                break
+            if offset and text[words[index - 1].end(): words[index].start()] != " ":
+                break
+            count += 1
+        return count
 
     def _timed_completion(self, prompt, prefix, result):
         started = time.perf_counter()
-        suggestions = self._predictor.predict(prompt, prefix)
+        completion = self._completer.complete(prompt, prefix)
         result.latencies_ms.append((time.perf_counter() - started) * 1000)
-        return choose_completion(suggestions, prefix, self._min_confidence)
+        return completion

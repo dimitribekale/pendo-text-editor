@@ -1,4 +1,7 @@
+"""Colour palettes and detection of the system light/dark setting."""
 
+import subprocess
+import sys
 
 # Define color palettes
 DARK_THEME = {
@@ -27,8 +30,6 @@ LIGHT_THEME = {
     "line_number_fg": "#606366",
 }
 
-import sys
-import subprocess
 
 
 def get_system_theme():

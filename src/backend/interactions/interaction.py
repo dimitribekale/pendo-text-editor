@@ -26,6 +26,8 @@ class Interaction:
     shown_ms: int
     model: str
     actual_word: Optional[str] = None
+    typing_interval_ms: Optional[int] = None  # user's pace when it appeared
+    previous_outcome: Optional[str] = None  # what happened to the one before
 
     @property
     def suggested_word(self):

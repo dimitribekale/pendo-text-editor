@@ -1,9 +1,11 @@
 """Shows a completion as gray inline text that is not part of the document."""
 
+import re
 import tkinter as tk
 from contextlib import contextmanager
 
 _TAG = "ghost_text"
+_NEXT_WORD = re.compile(r"\s*\S+")
 
 
 class GhostText:
@@ -50,6 +52,24 @@ class GhostText:
         self.clear()
         self._text.insert(tk.INSERT, completion)
         return True
+
+    def accept_word(self):
+        """Turn only the next word into real text; the rest stays offered.
+
+        Returns:
+            tuple[str, str]: The accepted text and what is still displayed.
+        """
+        ranges = self._text.tag_ranges(_TAG)
+        if not ranges:
+            return "", ""
+        completion = self._text.get(ranges[0], ranges[-1])
+        accepted = _NEXT_WORD.match(completion).group()
+        remaining = completion[len(accepted):]
+        self.clear()
+        self._text.insert(tk.INSERT, accepted)
+        if remaining:
+            self.show(remaining)
+        return accepted, remaining
 
     @contextmanager
     def _untracked(self):

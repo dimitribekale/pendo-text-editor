@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Optional
 
 from .interaction import Interaction
 
@@ -16,6 +17,8 @@ class PendingSuggestion:
     probability: float
     model: str
     shown_at: float
+    typing_interval_ms: Optional[int] = None
+    previous_outcome: Optional[str] = None
     hidden_at: float = 0.0
 
     def finish(self, outcome, actual_word=None):
@@ -30,4 +33,6 @@ class PendingSuggestion:
             shown_ms=round((self.hidden_at - self.shown_at) * 1000),
             model=self.model,
             actual_word=actual_word,
+            typing_interval_ms=self.typing_interval_ms,
+            previous_outcome=self.previous_outcome,
         )
